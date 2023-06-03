@@ -5,13 +5,21 @@ setBasePath(
 ); // or copy stuff into public/ with a build task
 import { SlButton, SlCard } from "@shoelace-style/shoelace/dist/react";
 
-import { useLazyLoadQuery, useMutation, useSubscription } from "react-relay";
-import { graphql } from "relay-runtime";
+import { useLazyLoadQuery, useMutation } from "react-relay";
+import { FetchPolicy, graphql } from "relay-runtime";
 
 import { appTotalQuery } from "./__generated__/appTotalQuery.graphql";
 import { appAddItemMutation } from "./__generated__/appAddItemMutation.graphql";
 
 import styles from "./app.module.scss";
+import { useCallback, useEffect, useState } from "react";
+
+type RefreshedQueryOptions =
+  | {
+      fetchKey?: number | undefined;
+      fetchPolicy?: FetchPolicy | undefined;
+    }
+  | undefined;
 
 interface MenuItem {
   name: string;
@@ -45,18 +53,6 @@ const TotalQuery = graphql`
   }
 `;
 
-const TotalSubscription = graphql`
-  subscription appTotalSubscription {
-    items_aggregate {
-      aggregate {
-        sum {
-          amount
-        }
-      }
-    }
-  }
-`;
-
 const AddItemMutation = graphql`
   mutation appAddItemMutation($cost: Int!) {
     insert_items_one(object: { amount: $cost, created_by: "Bld42" }) {
@@ -65,11 +61,15 @@ const AddItemMutation = graphql`
   }
 `;
 
-function AddItemButton(props: { item: MenuItem }) {
+function AddItemButton(props: {
+  item: MenuItem;
+  onClick: (item: MenuItem) => void;
+}) {
   const [commitMutation, isMutationInFlight] =
     useMutation<appAddItemMutation>(AddItemMutation);
 
   function onClick(item: MenuItem) {
+    props.onClick(item);
     commitMutation({ variables: { cost: item.cost } });
   }
 
@@ -81,9 +81,36 @@ function AddItemButton(props: { item: MenuItem }) {
 }
 
 const App = (): JSX.Element => {
-  // todo: subscription
-  const data = useLazyLoadQuery<appTotalQuery>(TotalQuery, {});
-  const total = data.items_aggregate?.aggregate?.sum?.amount || 0;
+  const [refreshedQueryOptions, setRefreshedQueryOptions] =
+    useState<RefreshedQueryOptions>(undefined);
+
+  const data = useLazyLoadQuery<appTotalQuery>(
+    TotalQuery,
+    {},
+    refreshedQueryOptions
+  );
+  const [total, setTotal] = useState<number>(
+    data.items_aggregate?.aggregate?.sum?.amount || 0
+  );
+
+  const optimisticUpdate = useCallback(
+    (item: MenuItem) => {
+      setTotal(total + item.cost);
+    },
+    [total, setTotal]
+  );
+
+  const refresh = useCallback(() => {
+    setRefreshedQueryOptions((prev: RefreshedQueryOptions) => ({
+      fetchKey: (prev?.fetchKey ?? 0) + 1,
+      fetchPolicy: "network-only",
+    }));
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(refresh, 5000);
+    return () => clearInterval(timer);
+  }, [refresh]);
 
   return (
     <main className={styles.main + " sl-theme-dark"}>
@@ -93,7 +120,11 @@ const App = (): JSX.Element => {
       </header>
       <section className={styles.buttons}>
         {MENU.map((item, i) => (
-          <AddItemButton key={i} item={item}></AddItemButton>
+          <AddItemButton
+            key={i}
+            item={item}
+            onClick={() => optimisticUpdate(item)}
+          ></AddItemButton>
         ))}
       </section>
       <section className={styles.total + " sl-theme-dark"}>
@@ -108,17 +139,3 @@ const App = (): JSX.Element => {
 };
 
 export default App;
-
-/*
-
-query GetTotal {
-  items_aggregate {
-    aggregate {
-      sum {
-        amount
-      }
-    }
-  }
-}
-
-*/
