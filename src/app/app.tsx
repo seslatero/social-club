@@ -22,17 +22,24 @@ type RefreshedQueryOptions =
   | undefined;
 
 interface MenuItem {
+  type: "default" | "primary" | "success" | "neutral" | "warning" | "danger";
   name: string;
   cost: number;
 }
 
 const MENU: MenuItem[] = [
-  { name: "Grind Coffee", cost: 50 },
-  { name: "Pod Coffee", cost: 100 },
-  { name: "Milk Week", cost: 100 },
-  { name: "Milk Shot", cost: 20 },
-  { name: "Chocolate", cost: 150 },
-  { name: "Can", cost: 100 },
+  { type: "primary", name: "Grind Coffee", cost: 50 },
+  { type: "primary", name: "Pod Coffee", cost: 100 },
+  { type: "success", name: "Milk Week", cost: 100 },
+  { type: "success", name: "Milk Shot", cost: 20 },
+  { type: "neutral", name: "Chocolate", cost: 150 },
+  { type: "neutral", name: "Can", cost: 100 },
+  { type: "warning", name: "Add Debt", cost: 10000 },
+  { type: "warning", name: "Add Debt", cost: 1000 },
+  { type: "warning", name: "Add Debt", cost: 100 },
+  { type: "danger", name: "Pay Back", cost: -10000 },
+  { type: "danger", name: "Pay Back", cost: -1000 },
+  { type: "danger", name: "Pay Back", cost: -100 },
 ];
 
 function currency(value: number) {
@@ -74,7 +81,12 @@ function AddItemButton(props: {
   }
 
   return (
-    <SlButton onClick={() => onClick(props.item)} disabled={isMutationInFlight}>
+    <SlButton
+      outline
+      variant={props.item.type}
+      onClick={() => onClick(props.item)}
+      disabled={isMutationInFlight}
+    >
       {props.item.name} - {currency(props.item.cost)}
     </SlButton>
   );
