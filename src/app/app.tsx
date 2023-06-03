@@ -68,15 +68,11 @@ const AddItemMutation = graphql`
   }
 `;
 
-function AddItemButton(props: {
-  item: MenuItem;
-  onClick: (item: MenuItem) => void;
-}) {
+function AddItemButton(props: { item: MenuItem }) {
   const [commitMutation, isMutationInFlight] =
     useMutation<appAddItemMutation>(AddItemMutation);
 
   function onClick(item: MenuItem) {
-    props.onClick(item);
     commitMutation({ variables: { cost: item.cost } });
   }
 
@@ -101,16 +97,7 @@ const App = (): JSX.Element => {
     {},
     refreshedQueryOptions
   );
-  const [total, setTotal] = useState<number>(
-    data.items_aggregate?.aggregate?.sum?.amount || 0
-  );
-
-  const optimisticUpdate = useCallback(
-    (item: MenuItem) => {
-      setTotal(total + item.cost);
-    },
-    [total, setTotal]
-  );
+  const total = data.items_aggregate?.aggregate?.sum?.amount || 0;
 
   const refresh = useCallback(() => {
     setRefreshedQueryOptions((prev: RefreshedQueryOptions) => ({
@@ -120,7 +107,7 @@ const App = (): JSX.Element => {
   }, []);
 
   useEffect(() => {
-    const timer = setInterval(refresh, 5000);
+    const timer = setInterval(refresh, 500);
     return () => clearInterval(timer);
   }, [refresh]);
 
@@ -132,11 +119,7 @@ const App = (): JSX.Element => {
       </header>
       <section className={styles.buttons}>
         {MENU.map((item, i) => (
-          <AddItemButton
-            key={i}
-            item={item}
-            onClick={() => optimisticUpdate(item)}
-          ></AddItemButton>
+          <AddItemButton key={i} item={item}></AddItemButton>
         ))}
       </section>
       <section className={styles.total + " sl-theme-dark"}>
